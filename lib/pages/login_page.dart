@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pokedex/pages/register_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:pokedex/pages/pokedex.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -15,65 +16,36 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _login() async {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+  void _login() async {
+    String email = _emailController.text.trim();
+    String password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      _showMessage('Preencha email e senha.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, preencha todos os campos')),
+      );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      _showMessage('Login realizado com sucesso.');
+      // Redireciona para a PokedexApp
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const PokedexApp()),
+      );
     } on FirebaseAuthException catch (e) {
-      _showMessage(_firebaseErrorMessage(e));
-    } catch (_) {
-      _showMessage('Nao foi possivel fazer login agora.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Email ou senha incorretos, tente novamente!!!')),
+      );
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  String _firebaseErrorMessage(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'invalid-email':
-        return 'Email invalido.';
-      case 'invalid-credential':
-      case 'wrong-password':
-      case 'user-not-found':
-        return 'Email ou senha incorretos.';
-      case 'user-disabled':
-        return 'Este usuario foi desativado.';
-      case 'too-many-requests':
-        return 'Muitas tentativas. Tente novamente mais tarde.';
-      default:
-        return 'Erro ao fazer login: ${e.message ?? e.code}';
+      setState(() => _isLoading = false);
     }
   }
 
@@ -88,23 +60,21 @@ class _LoginPageState extends State<LoginPage> {
               height: 40,
               width: 40,
             ),
-            const SizedBox(
-              width: 8,
-            ),
+            const SizedBox(width: 8),
             Text(
               'Pokedex',
               style: GoogleFonts.limelight(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
-            )
+            ),
           ],
         ),
         backgroundColor: Colors.red,
         elevation: 0,
       ),
       body: Container(
-        color: Color(0xffffffff),
+        color: Colors.white,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -117,9 +87,7 @@ class _LoginPageState extends State<LoginPage> {
                   width: 200,
                 ),
               ),
-              const SizedBox(
-                height: 32,
-              ),
+              const SizedBox(height: 32),
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -127,7 +95,7 @@ class _LoginPageState extends State<LoginPage> {
                   style: GoogleFonts.dmSerifText(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xff000000),
+                    color: Colors.black,
                   ),
                 ),
               ),
@@ -136,7 +104,7 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _emailController,
                 decoration: const InputDecoration(
                   labelText: 'Email',
-                  labelStyle: TextStyle(color: Color(0xff000000)),
+                  labelStyle: TextStyle(color: Colors.black),
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.emailAddress,
@@ -146,7 +114,7 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _passwordController,
                 decoration: const InputDecoration(
                   labelText: 'Password',
-                  labelStyle: TextStyle(color: Color(0xff000000)),
+                  labelStyle: TextStyle(color: Colors.black),
                   border: OutlineInputBorder(),
                 ),
                 obscureText: true,
@@ -155,17 +123,14 @@ class _LoginPageState extends State<LoginPage> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _login,
                 child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
                         'Login',
                         style: TextStyle(color: Colors.black),
                       ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
+                  disabledBackgroundColor: Colors.grey,
                 ),
               ),
               const SizedBox(height: 32),
@@ -174,17 +139,28 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   const Text('Não tem um cadastro?'),
                   TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const RegisterPage()),
-                        );
-                      },
-                      child: const Text(
-                        'Cadastre-se',
-                        style: TextStyle(color: Colors.blue),
-                      )),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  const RegisterPage(),
+                          transitionsBuilder:
+                              (context, animation, secondaryAnimation, child) {
+                            var fadeAnimation =
+                                Tween(begin: 0.0, end: 1.0).animate(animation);
+                            return FadeTransition(
+                                opacity: fadeAnimation, child: child);
+                          },
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Cadastre-se',
+                      style: TextStyle(color: Colors.blue),
+                    ),
+                  ),
                 ],
               )
             ],
